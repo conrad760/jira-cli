@@ -30,6 +30,8 @@ export LDFLAGS += -w
 export CGO_ENABLED ?= 0
 export GOCACHE ?= $(CURDIR)/.gocache
 
+GOLANGCI_LINT_VERSION = v1.57.2
+
 all: build
 
 deps:
@@ -42,11 +44,7 @@ install:
 	go install -ldflags='$(LDFLAGS)' ./...
 
 lint:
-	@if ! command -v golangci-lint > /dev/null 2>&1; then \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		sh -s -- -b "$$(go env GOPATH)/bin" v1.55.2 ; \
-	fi
-	golangci-lint run ./...
+	docker run -t --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) golangci-lint run -v 
 
 test:
 	@go clean -testcache

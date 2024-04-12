@@ -35,6 +35,7 @@ const (
 	  - Press 'v' to view selected issue details.
 	  - Press 'c' to copy issue URL to the system clipboard.
 	  - Press 'CTRL+K' to copy issue key to the system clipboard.
+	  - Press 'y' to copy issue key to the system clipboard.
 	  - Hit ENTER to open the selected issue in a browser.
 	
 	Press 'q' / ESC / CTRL+C to quit.`

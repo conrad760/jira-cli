@@ -40,7 +40,11 @@ type MoveFunc func(row, col int) func() (key string, actions []string, handler M
 type CopyFunc func(row, column int, data interface{})
 
 // CopyKeyFunc is fired when a user press 'CTRL+K' character in the table cell.
+// CopyKeyFunc is fired when a user press 'y' character in the table cell.
 type CopyKeyFunc func(row, column int, data interface{})
+
+// CustomKeyFunc is fired when one of custom keys is pressed in the table cell.
+type CustomKeyFunc func(row, column int, data interface{}, command string)
 
 // TableData is the data to be displayed in a table.
 type TableData [][]string
@@ -82,26 +86,28 @@ type TableStyle struct {
 
 // Table is a table layout.
 type Table struct {
-	screen       *Screen
-	painter      *tview.Pages
-	view         *tview.Table
-	footer       *tview.TextView
-	secondary    *tview.Modal
-	help         *primitive.InfoModal
-	action       *primitive.ActionModal
-	style        TableStyle
-	data         TableData
-	colPad       uint
-	colFixed     uint
-	maxColWidth  uint
-	footerText   string
-	helpText     string
-	selectedFunc SelectedFunc
-	viewModeFunc ViewModeFunc
-	moveFunc     MoveFunc
-	refreshFunc  RefreshFunc
-	copyFunc     CopyFunc
-	copyKeyFunc  CopyKeyFunc
+	screen        *Screen
+	painter       *tview.Pages
+	view          *tview.Table
+	footer        *tview.TextView
+	secondary     *tview.Modal
+	help          *primitive.InfoModal
+	action        *primitive.ActionModal
+	style         TableStyle
+	data          TableData
+	colPad        uint
+	colFixed      uint
+	maxColWidth   uint
+	footerText    string
+	helpText      string
+	selectedFunc  SelectedFunc
+	viewModeFunc  ViewModeFunc
+	moveFunc      MoveFunc
+	refreshFunc   RefreshFunc
+	copyFunc      CopyFunc
+	copyKeyFunc   CopyKeyFunc
+	customKeys    map[string]interface{}
+	customKeyFunc CustomKeyFunc
 }
 
 // TableOption is a functional option to wrap table properties.
@@ -186,6 +192,14 @@ func WithViewModeFunc(fn ViewModeFunc) TableOption {
 	}
 }
 
+// WithCustomKeyFunc sets a func that is triggered when one of custom keys is pressed.
+func WithCustomKeyFunc(fn CustomKeyFunc, keys map[string]interface{}) TableOption {
+	return func(t *Table) {
+		t.customKeyFunc = fn
+		t.customKeys = keys
+	}
+}
+
 // WithMoveFunc sets a func that is triggered when an action button is pressed.
 func WithMoveFunc(fn MoveFunc) TableOption {
 	return func(t *Table) {
@@ -207,7 +221,7 @@ func WithCopyFunc(fn CopyFunc) TableOption {
 	}
 }
 
-// WithCopyKeyFunc sets a func that is triggered when a user press 'CTRL+K'.
+// WithCopyKeyFunc sets a func that is triggered when a user press 'CTRL+K' OR 'Y'.
 func WithCopyKeyFunc(fn CopyKeyFunc) TableOption {
 	return func(t *Table) {
 		t.copyKeyFunc = fn
@@ -288,6 +302,12 @@ func (t *Table) initTable() {
 			}
 			if ev.Key() == tcell.KeyRune {
 				switch ev.Rune() {
+				case 'y':
+					if t.copyKeyFunc == nil {
+						return ev
+					}
+					r, c := t.view.GetSelection()
+					t.copyKeyFunc(r, c, t.data)
 				case 'q':
 					t.screen.Stop()
 					os.Exit(0)
@@ -380,6 +400,16 @@ func (t *Table) initTable() {
 						// Refresh the screen.
 						t.screen.Draw()
 					}()
+
+				default:
+					if t.customKeyFunc != nil && t.customKeys != nil {
+						for k, command := range t.customKeys {
+							if string(ev.Rune()) == k {
+								r, c := t.view.GetSelection()
+								t.customKeyFunc(r, c, t.data, command.(string))
+							}
+						}
+					}
 				}
 			}
 			return ev
